@@ -25,6 +25,15 @@ func TestMarshalInt(t *testing.T) {
     }
 }
 
+func TestMarshalInt2(t *testing.T) {
+    i := 5
+    b, _ := Marshal(&i)
+    if string(b) != "i:5;" {
+        t.Error("marshal failed for int")
+    }
+}
+
+
 func TestMarshalString(t *testing.T) {
     b, _ := Marshal("test")
     if string(b) != "s:4:\"test\";" {

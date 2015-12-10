@@ -113,20 +113,19 @@ func (e *encodeState) encodeObject(v PHPObject) {
 func (e *encodeState) Encode(v interface{}) {
     rv := reflect.ValueOf(v)
     if rv.Type().Kind() == reflect.Ptr {
-        fmt.Println("pointer")
         rv = rv.Elem()
     }
     kind := rv.Type().Kind()
     switch kind {
         case reflect.Bool:
-            e.encodeBool(v.(bool))
+            e.encodeBool(rv.Interface().(bool))
         case reflect.Int:
-            e.encodeInt(v.(int))
+            e.encodeInt(rv.Interface().(int))
         case reflect.String:
-            e.encodeString(v.(string))
+            e.encodeString(rv.Interface().(string))
         case reflect.Map:
-            e.encodeArray(v.(map[interface{}]interface{}))
+            e.encodeArray(rv.Interface().(map[interface{}]interface{}))
         case reflect.Struct:
-            e.encodeObject(v.(PHPObject))            
+            e.encodeObject(rv.Interface().(PHPObject))            
     }
 }
