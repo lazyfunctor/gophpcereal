@@ -22,36 +22,15 @@ type None struct{}
 var errUnexpectedToken = errors.New("Unexpected token")
 var errMissingToken = errors.New("Missing Token")
 
-const (
-    colon = byte(':')
-    semicol = byte(';')
-    quote = byte('"')
-    leftCurly = byte('{')
-    rightCurly = byte('}')
-    asterisk = byte('*')
-)
-
-type PropertyType int
-
-const (
-    Public PropertyType = iota
-    Private PropertyType = iota
-    Protected PropertyType = iota
-)
-
-type Property struct {
-    key string
-    propType PropertyType
-}
-
 //used defer/recovery for error handling
 func Unmarshal(inp []byte) (v interface{}, err error) {
     defer func() {
-        if r := recover(); r != nil {
-            if _, ok := r.(runtime.Error); ok {
-                panic(r)
+        if rec := recover(); rec != nil {
+            if _, ok := rec.(runtime.Error); ok {
+                panic(rec)
             }
-            err = r.(error)
+            fmt.Println(rec)
+            err = rec.(error)
         }
     }()    
     r := bytes.NewReader(inp)
@@ -183,7 +162,7 @@ func (d decodeState) readArray(val map[interface {}]interface{}) {
     return
 }
 
-func (d decodeState) readObject(val map[interface {}]interface{}) {
+func (d decodeState) readObject(val *PHPObject) {
     d.expect(colon)
     var lengthData []byte
     d.readUntil(colon, &lengthData)
@@ -195,6 +174,8 @@ func (d decodeState) readObject(val map[interface {}]interface{}) {
     d.expect(quote)
     className := make([]byte, length)
     n, err := d.r.Read(className)
+    val.ClassName = string(className)
+    val.Properties = make(map[string]Property)
     if err != nil {
         d.error(err)
         return
@@ -217,20 +198,70 @@ func (d decodeState) readObject(val map[interface {}]interface{}) {
         nulledClassName = append(nulledClassName, byte(0))
         if strings.HasPrefix(k, string([]byte{0, asterisk, 0})) {
             key := k[3:]
-            p := Property{propType: Protected, key: key}
-            val[p] = v
+            p := Property{PropType: Protected, PropValue: v}
+            val.Properties[key] = p
         } else if strings.HasPrefix(k, string(nulledClassName)) {
             key := k[length+2:]
-            p := Property{propType: Private, key: key}
-            val[p] = v
+            p := Property{PropType: Private, PropValue: v}
+            val.Properties[key] = p
         } else {
-            p := Property{propType: Public, key: k}
-            val[p] = v
+            p := Property{PropType: Public, PropValue: v}
+            val.Properties[k] = p
         }
     }
     d.expect(rightCurly)
 
 }
+
+
+// func (d decodeState) readObject(val map[interface {}]interface{}) {
+//     d.expect(colon)
+//     var lengthData []byte
+//     d.readUntil(colon, &lengthData)
+//     length, err := strconv.Atoi(string(lengthData))
+//     if err != nil {
+//         d.error(err)
+//         return
+//     }
+//     d.expect(quote)
+//     className := make([]byte, length)
+//     n, err := d.r.Read(className)
+//     if err != nil {
+//         d.error(err)
+//         return
+//     }
+//     d.offset += n
+//     d.expect(quote)    
+//     d.expect(colon)
+//     var propLengthData []byte
+//     d.readUntil(colon, &propLengthData)
+//     propLength, err := strconv.Atoi(string(propLengthData))
+//     if err != nil {
+//         d.error(err)
+//         return
+//     }
+//     d.expect(leftCurly)
+//     for i := 1; i <= propLength; i += 1 {
+//         k := d.Decode().(string)
+//         v := d.Decode()
+//         nulledClassName := append([]byte{0}, className...)
+//         nulledClassName = append(nulledClassName, byte(0))
+//         if strings.HasPrefix(k, string([]byte{0, asterisk, 0})) {
+//             key := k[3:]
+//             p := Property{propType: Protected, key: key}
+//             val[p] = v
+//         } else if strings.HasPrefix(k, string(nulledClassName)) {
+//             key := k[length+2:]
+//             p := Property{propType: Private, key: key}
+//             val[p] = v
+//         } else {
+//             p := Property{propType: Public, key: k}
+//             val[p] = v
+//         }
+//     }
+//     d.expect(rightCurly)
+
+// }
 
 func (d decodeState) Decode() interface{} {
     for {
@@ -243,32 +274,32 @@ func (d decodeState) Decode() interface{} {
             return nil
         }        
         switch type_ {
-            case byte('n'):
+            case nullMark:
                 return None{}
-            case byte('i'):
+            case intMark:
                 var ival int
                 d.readInt(&ival)
                 return ival
-            case byte('b'):
+            case boolMark:
                 var bval bool
                 d.readBool(&bval)
                 return bval
-            case byte('d'):
+            case floatMark:
                 var dval float64
                 d.readFloat(&dval)
                 return dval
-            case byte('s'):
+            case strMark:
                 var sval string
                 d.readString(&sval)
                 return sval
-            case byte('a'):
+            case arrMark:
                 aval := make(map[interface {}]interface{})
                 d.readArray(aval)
                 return aval
-            case byte('O'):
-                oval := make(map[interface {}]interface{})
+            case objMark:
+                oval := &PHPObject{}
                 d.readObject(oval)
-                return oval
+                return *oval
 
         }
     }
