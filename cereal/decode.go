@@ -5,7 +5,7 @@ import (
     "strconv"
     "io"
     "errors"
-    "fmt"
+    _ "fmt"
     "runtime"
     "strings"
     )
@@ -29,7 +29,6 @@ func Unmarshal(inp []byte) (v interface{}, err error) {
             if _, ok := rec.(runtime.Error); ok {
                 panic(rec)
             }
-            fmt.Println(rec)
             err = rec.(error)
         }
     }()    
@@ -75,9 +74,6 @@ func (d decodeState) expect(delimiter byte) {
     }
     d.offset += 1
     if byte_ != delimiter {
-        fmt.Println(string(delimiter))
-        fmt.Println(string(byte_))
-        fmt.Println(d.offset)
         d.error(errUnexpectedToken)
     }        
 }
@@ -212,56 +208,6 @@ func (d decodeState) readObject(val *PHPObject) {
     d.expect(rightCurly)
 
 }
-
-
-// func (d decodeState) readObject(val map[interface {}]interface{}) {
-//     d.expect(colon)
-//     var lengthData []byte
-//     d.readUntil(colon, &lengthData)
-//     length, err := strconv.Atoi(string(lengthData))
-//     if err != nil {
-//         d.error(err)
-//         return
-//     }
-//     d.expect(quote)
-//     className := make([]byte, length)
-//     n, err := d.r.Read(className)
-//     if err != nil {
-//         d.error(err)
-//         return
-//     }
-//     d.offset += n
-//     d.expect(quote)    
-//     d.expect(colon)
-//     var propLengthData []byte
-//     d.readUntil(colon, &propLengthData)
-//     propLength, err := strconv.Atoi(string(propLengthData))
-//     if err != nil {
-//         d.error(err)
-//         return
-//     }
-//     d.expect(leftCurly)
-//     for i := 1; i <= propLength; i += 1 {
-//         k := d.Decode().(string)
-//         v := d.Decode()
-//         nulledClassName := append([]byte{0}, className...)
-//         nulledClassName = append(nulledClassName, byte(0))
-//         if strings.HasPrefix(k, string([]byte{0, asterisk, 0})) {
-//             key := k[3:]
-//             p := Property{propType: Protected, key: key}
-//             val[p] = v
-//         } else if strings.HasPrefix(k, string(nulledClassName)) {
-//             key := k[length+2:]
-//             p := Property{propType: Private, key: key}
-//             val[p] = v
-//         } else {
-//             p := Property{propType: Public, key: k}
-//             val[p] = v
-//         }
-//     }
-//     d.expect(rightCurly)
-
-// }
 
 func (d decodeState) Decode() interface{} {
     for {
